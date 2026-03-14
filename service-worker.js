@@ -3,7 +3,9 @@ const CACHE_NAME = 'pachi-nikki';
 // service-worker.jsファイルからの相対パスで指定
 const urlsToCache = [
   './index.html',
-  // アイコンやCSSなども必要に応じて追加
+  './manifest.json',
+  './favicon.png',
+  './service-worker.js',
 ];
 
 // 1. インストールイベント (Service Worker登録時に実行)
