@@ -1,0 +1,11 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.pachinikki.app",
+      "sha256_cert_fingerprints":
+        ["26:99:35:0F:6F:42:70:5F:48:D0:B1:05:F1:DA:87:D2:94:6C:68:25:C5:AB:AC:B3:15:09:19:F9:04:0B:05:44"]
+    }
+  }
+]
