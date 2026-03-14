@@ -2,7 +2,7 @@
   "name": "パチ日記 日記感覚のパチンコ・パチスロの収支管理",
   "short_name": "パチ日記",
   "description": "日記感覚のパチンコ・パチスロ用の収支管理アプリ",
-  "start_url": "https://pachi-nikki.github.io",
+  "start_url": "https://pachi-nikki.github.io/",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#000000",
