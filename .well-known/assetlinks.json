@@ -3,7 +3,7 @@
     "relation": ["delegate_permission/common.handle_all_urls"],
     "target": {
       "namespace": "android_app",
-      "package_name": "com.pachinikki.app",
+      "package_name": "io.pachinikki.twa",
       "sha256_cert_fingerprints":
         ["54:19:EE:79:15:1E:9A:16:A6:A3:14:90:8C:56:2F:73:C6:09:55:2E:F1:E4:F7:45:DD:ED:71:B6:17:0C:B2:90"]
     }
