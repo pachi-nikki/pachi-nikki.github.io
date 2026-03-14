@@ -1,0 +1,1031 @@
+
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="author" content="Hiroro">
+    <meta name="description" content="日記感覚でシンプルなパチンコ・パチスロ用収支管理アプリ">
+    <link rel="icon" href="favicon.png" type="image/png">
+    <link rel="apple-touch-icon" href="favicon.png">
+    <link rel="manifest" href="manifest.json">
+    <title>パチ日記</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        /* ===== CSS 変数（カラーパレット） ===== */
+        :root {
+            --main-bg:   #F0F2F5;
+            --card-bg:   #ffffff;
+            --primary:   #3498db;
+            --positive:  #0071BC;
+            --negative:  #FF0000;
+            --dark:      #7f8c8d;
+            --header-bg: #0076A9;
+        }
+
+        /* ===== ベース ===== */
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: var(--main-bg);
+            color: #333;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: pan-y;
+            overflow-x: hidden;
+        }
+
+        /* ===== ヘッダー ===== */
+        header {
+            width: 100%;
+            background: var(--header-bg);
+            color: white;
+            padding-top: calc(env(safe-area-inset-top, 20px) + 15px);
+            padding-bottom: 15px;
+            text-align: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+            margin-bottom: 10px;
+        }
+
+        /* タイトルは contenteditable で編集可能 */
+        #appTitle {
+            font-size: 1.4rem;
+            margin: 0;
+            display: inline-block;
+            padding: 2px 10px;
+            letter-spacing: 0.05em;
+            cursor: pointer;
+            border: none;
+        }
+        #appTitle:focus {
+            background: rgba(255, 255, 255, 0.1);
+            outline: none;
+        }
+
+        /* ===== メインコンテナ ===== */
+        .container {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 0 10px 20px 10px;
+            box-sizing: border-box;
+        }
+
+        /* ===== カレンダーナビゲーション ===== */
+        .calendar-nav {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            width: 100%;
+            max-width: 500px;
+            margin-bottom: 8px;
+        }
+        .nav-btn {
+            background: none;
+            border: none;
+            padding: 10px 13px;
+            font-size: 1rem;
+            cursor: pointer;
+            color: #999;
+        }
+        #calendarHeader {
+            font-size: 1.2rem;
+            font-weight: bold;
+        }
+
+        /* ===== カレンダー本体 ===== */
+        .calendar-container {
+            background: var(--card-bg);
+            padding: 5px;
+            border-radius: 12px;
+            width: 100%;
+            max-width: 500px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+            box-sizing: border-box;
+            overflow: hidden;
+            touch-action: pan-y;
+            position: relative;
+        }
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 1px;
+            background-color: #eee;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 1px solid #eee;
+            width: 100%;
+            will-change: transform, opacity;  /* スワイプアニメーション最適化 */
+        }
+
+        /* スワイプ／月切替アニメーション用クラス（JS で付与） */
+        .is-animating {
+            transition: transform 0.3s ease-out, opacity 0.3s ease-out;
+        }
+
+        /* 曜日ヘッダー行 */
+        .day-header {
+            background: #f8f9fa;
+            font-size: 0.7rem;
+            font-weight: bold;
+            padding: 6px 0;
+            text-align: center;
+        }
+        .day-header:nth-child(1) { color: var(--negative); }  /* 日曜：赤 */
+        .day-header:nth-child(7) { color: var(--primary);  }  /* 土曜：青 */
+
+        /* 日付セル（縦横比 1:1.2） */
+        .day {
+            background: white;
+            aspect-ratio: 1 / 1;
+            display: flex;
+            flex-direction: column;
+            padding: 2px 3px;
+            cursor: pointer;
+            position: relative;
+            justify-content: flex-start;
+            overflow: hidden;
+            box-sizing: border-box;
+        }
+        /* 当月外の日（グレーアウト・タップ無効） */
+        .day.other-month {
+            background-color: #fafafa;
+            color: #ccc;
+            pointer-events: none;
+        }
+
+        /* 日付数字（メモあり時はドット付き） */
+        .date-num {
+            text-align: center;
+            font-size: 0.9rem;
+            font-weight: bold;
+            color: #7f8c8d;
+            margin-bottom: 1px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+        }
+        /* メモ有りインジケーター（小さいグレー丸） */
+        .memo-dot {
+            width: 4px;
+            height: 4px;
+            background-color: #bdc3c7;
+            border-radius: 50%;
+            margin-left: 3px;
+            display: inline-block;
+        }
+
+        /* 収支金額の表示エリア */
+        .data-container {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            justify-content: center;
+            flex-grow: 1;
+            width: 100%;
+            overflow: hidden;
+        }
+        .day-data {
+            text-align: center;
+            width: 100%;
+            line-height: 1.1;
+            white-space: nowrap;
+            letter-spacing: -0.02em;
+        }
+        .val-amount {
+            font-size: 0.8rem;
+            color: var(--positive);
+            font-weight: bold;
+        }
+
+        /* ===== ユーティリティ ===== */
+        .small-font { font-size: 0.7rem !important; }  /* 6桁以上の金額で縮小 */
+        .negative   { color: var(--negative) !important; }
+        .positive   { color: var(--positive) !important; }
+        .hidden     { display: none !important; }
+
+        /* ===== 月間サマリー ===== */
+        .summary {
+            margin-top: 12px;
+            background: #FFF;
+            color: #000;
+            padding: 12px;
+            border-radius: 12px;
+            border: 1px solid #f8f9fa;
+            width: 100%;
+            max-width: 500px;
+            display: flex;
+            justify-content: center;
+            box-sizing: border-box;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .summary-item  { text-align: center; flex: 1; }
+        .summary-label { font-size: 0.7rem; opacity: 0.8; display: block; }
+        .summary-value { font-size: 1.2rem; font-weight: bold; margin-top: 4px; display: block; }
+
+        /* ===== アクションボタン群 ===== */
+        .action-group {
+            margin-top: 12px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            width: 100%;
+            max-width: 500px;
+        }
+        .btn {
+            border: none;
+            padding: 14px;
+            border-radius: 12px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            color: #FFF;
+            font-weight: bold;
+            text-align: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .cum-btn    { background: #009E96; }
+        .graph-btn  { background: #009E96; }
+        .export-btn { background: #F39800; }
+        .import-btn { background: #009E96; }
+
+        /* ===== モーダル共通 ===== */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            padding: 15px;
+            box-sizing: border-box;
+        }
+        .modal-content {
+            background: white;
+            padding: 20px;
+            border-radius: 20px;
+            width: 100%;
+            max-width: 340px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        /* 日付スライドアニメーション用クラス（JS で付与） */
+        .modal-content.is-sliding {
+            transition: transform 0.25s ease-out, opacity 0.25s ease-out;
+        }
+
+        /* ===== 年間累計テーブル ===== */
+        .cum-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+            font-size: 0.85rem;
+        }
+        .cum-table th,
+        .cum-table td          { border: 1px solid #ddd; padding: 4px; text-align: center; }
+        .cum-table th          { background: #f8f9fa; }
+        .cum-table td:first-child       { background: #f8f9fa; }
+        .cum-table td:not(:first-child) { font-weight: bold; }
+
+        /* ===== 入力フォーム（モーダル内） ===== */
+        input, textarea {
+            width: 100%;
+            padding: 12px;
+            margin: 5px 0 12px 0;
+            border: 1px solid #ddd;
+            border-radius: 10px;
+            box-sizing: border-box;
+            font-size: 1rem;
+            appearance: none;
+            font-family: inherit;
+            background: #fff;
+        }
+        input:focus {
+            border-color: var(--primary);
+            outline: none;
+            box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
+        }
+        input::placeholder,
+        textarea::placeholder { color: #ccc; }
+
+        label { font-size: 0.9rem; color: #666; font-weight: bold; }
+
+        /* 回収／投資 入力行（ラベル＋入力を横並び） */
+        .input-row       { display: flex; align-items: center; gap: 10px; margin-bottom: 0; }
+        .input-row label { white-space: nowrap; min-width: 60px; margin-bottom: 0; }
+        .input-row input { margin: 5px 0 12px 0; flex: 1; }
+
+        /* リアルタイム収支表示 */
+        .calc-balance {
+            text-align: center;
+            font-size: 1.1rem;
+            font-weight: bold;
+            margin: 4px 0 14px 0;
+            padding: 8px;
+            border-radius: 8px;
+            background: #f8f9fa;
+        }
+
+        /* モーダルボタングループ */
+        .btn-group  { display: flex; gap: 10px; margin-top: 10px; }
+        .modal-btn  { flex: 1; padding: 15px; border: none; border-radius: 10px; cursor: pointer; font-weight: bold; font-size: 1rem; }
+        .save-btn   { background: var(--primary); color: white; }
+        .cancel-btn { background: #eee; color: #333; }
+        .clear-btn  { background: var(--negative); color: white; }
+
+        /* ===== フッター：バックアップ注意書き ===== */
+        .backup-notice {
+            width: 100%;
+            max-width: 500px;
+            margin: 16px 0 24px 0;
+            padding: 12px 16px;
+            box-sizing: border-box;
+            background: #fff8e1;
+            border-radius: 8px;
+            font-size: 0.75rem;
+            color: #7a6000;
+            line-height: 1.6;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- ========== ヘッダー（タイトルは長押しで編集可） ========== -->
+    <header>
+        <h1 id="appTitle" contenteditable="true" spellcheck="false">パチ日記</h1>
+    </header>
+
+    <!-- ========== メインコンテンツ ========== -->
+    <div class="container">
+
+        <!-- カレンダーナビゲーション（月移動） -->
+        <div class="calendar-nav">
+            <button class="nav-btn" onclick="navChangeMonth(-1)">◀</button>
+            <div id="calendarHeader"></div>
+            <button class="nav-btn" onclick="navChangeMonth(1)">▶</button>
+        </div>
+
+        <!-- カレンダー本体（スワイプ領域） -->
+        <div id="calendarSwipeArea" class="calendar-container">
+            <div class="calendar-grid" id="calendarGrid"></div>
+        </div>
+
+        <!-- 月間収支サマリー -->
+        <div class="summary">
+            <div class="summary-item" id="summaryAmount">
+                <span class="summary-label">今月の収支</span>
+                <span id="totalAmount" class="summary-value">¥0</span>
+            </div>
+        </div>
+
+        <!-- アクションボタン（年間累計 / グラフ / CSV出力 / CSV読込） -->
+        <div class="action-group">
+            <button class="btn cum-btn"    onclick="showCumulativeModal()">年間累計を表示</button>
+            <button class="btn graph-btn"  onclick="showGraph()">グラフ表示</button>
+            <button class="btn export-btn" onclick="exportCSV()">CSVバックアップ</button>
+            <button class="btn import-btn" onclick="document.getElementById('importFile').click()">CSVから復元</button>
+            <!-- ファイル選択（非表示） -->
+            <input type="file" id="importFile" style="display:none" accept=".csv" onchange="importCSV(this)">
+        </div>
+
+    </div><!-- /.container -->
+
+
+    <!-- ========== 日付入力モーダル ========== -->
+    <div id="modal" class="modal" onclick="if(event.target==this)saveData()">
+        <div class="modal-content" id="modalContent">
+
+            <!-- モーダルヘッダー（前後日スライド） -->
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;">
+                <button onclick="shiftModalDate(-1)" style="background:none; border:none; font-size:1rem; cursor:pointer; padding:0 8px; color:#ccc">◀</button>
+                <h3 id="selectedDateText" style="margin:0; color:var(--dark);"></h3>
+                <button onclick="shiftModalDate(1)"  style="background:none; border:none; font-size:1rem; cursor:pointer; padding:0 8px; color:#ccc">▶</button>
+            </div>
+
+            <!-- 回収金額 -->
+            <div class="input-row">
+                <label style="color:var(--positive);">回収金額</label>
+                <input type="text" id="recoveryInput" inputmode="numeric" placeholder="0" oninput="autoCalcBalance()">
+            </div>
+
+            <!-- 投資金額 -->
+            <div class="input-row">
+                <label style="color:var(--negative);">投資金額</label>
+                <input type="text" id="investInput" inputmode="numeric" placeholder="0" oninput="autoCalcBalance()">
+            </div>
+
+            <!-- リアルタイム収支表示 -->
+            <div id="calcBalanceDisplay" class="calc-balance">収支: ¥0</div>
+
+            <!-- メモ -->
+            <label>メモ</label>
+            <textarea id="memoInput" rows="3" onfocus="closeKeypad()"></textarea>
+
+            <!-- 操作ボタン -->
+            <div class="btn-group">
+                <button class="modal-btn save-btn"   onclick="saveData()">保存</button>
+                <button class="modal-btn clear-btn"  onclick="clearModalData()">消去</button>
+                <button class="modal-btn cancel-btn" onclick="closeModal()">戻る</button>
+            </div>
+
+        </div>
+    </div><!-- /#modal -->
+
+
+    <!-- ========== 年間累計モーダル ========== -->
+    <div id="cumModal" class="modal" onclick="if(event.target==this)this.style.display='none'">
+        <div class="modal-content" style="max-width:500px; position:relative;">
+            <!-- 閉じるボタン -->
+            <button onclick="document.getElementById('cumModal').style.display='none'"
+                    style="position:absolute; top:12px; right:12px; background:none; border:none; font-size:1.4rem; cursor:pointer; color:#999; line-height:1;">×</button>
+            <h3 id="cumModalTitle" style="margin-top:0; text-align:center;">年間収支</h3>
+            <!-- 月別収支テーブル -->
+            <table class="cum-table">
+                <thead>
+                    <tr><th>月</th><th>月間収支</th><th>累計収支</th></tr>
+                </thead>
+                <tbody id="cumTableBody"></tbody>
+            </table>
+            <!-- 累計グラフ -->
+            <canvas id="cumChart"></canvas>
+            <button class="modal-btn cancel-btn" style="width:100%; margin-top:15px;"
+                    onclick="document.getElementById('cumModal').style.display='none'">閉じる</button>
+        </div>
+    </div><!-- /#cumModal -->
+
+
+    <!-- ========== 月間グラフモーダル ========== -->
+    <div id="graphModal" class="modal" onclick="if(event.target==this)this.style.display='none'">
+        <div class="modal-content" style="max-width:600px;">
+            <canvas id="balanceChart"></canvas>
+            <button class="modal-btn cancel-btn" style="width:100%; margin-top:15px;"
+                    onclick="document.getElementById('graphModal').style.display='none'">閉じる</button>
+        </div>
+    </div><!-- /#graphModal -->
+
+
+    <!-- ========== JavaScript ========== -->
+    <script>
+        // ===== データ・状態変数 =====
+        let currentData      = JSON.parse(localStorage.getItem('pachi_data')) || {};
+        let viewDate         = new Date();      // 現在表示中の年月
+        let selectedDateKey  = "";              // モーダルで選択中の日付キー（YYYY-MM-DD）
+        let myChart          = null;            // 月間グラフの Chart.js インスタンス
+        let cumChartInstance = null;            // 年間累計グラフの Chart.js インスタンス
+        let summaryCache     = {};              // 月別収支の計算キャッシュ
+
+        // ===== リアルタイム収支計算 =====
+        // 入力値が変わるたびに「回収 − 投資」を表示する
+        function autoCalcBalance() {
+            const recovery = parseInt(document.getElementById('recoveryInput').value) || 0;
+            const invest   = parseInt(document.getElementById('investInput').value)   || 0;
+            const balance  = recovery - invest;
+            const display  = document.getElementById('calcBalanceDisplay');
+            display.innerText    = `収支: ¥${balance.toLocaleString()}`;
+            display.style.color  = balance < 0 ? 'var(--negative)' : balance > 0 ? 'var(--positive)' : '#333';
+        }
+
+        // ===== タイトル編集・保存 =====
+        // contenteditable のタイトルをローカルストレージに保存する
+        const titleEl    = document.getElementById('appTitle');
+        const savedTitle = localStorage.getItem('app_title_pachi');
+        if (savedTitle) titleEl.innerText = savedTitle;
+        titleEl.addEventListener('blur',    ()  => localStorage.setItem('app_title_pachi', titleEl.innerText));
+        titleEl.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); titleEl.blur(); } });
+
+        // ===== カレンダースワイプ操作 =====
+        let startX = 0, currentX = 0, isDragging = false, isAnimating = false;
+        const swipeArea = document.getElementById('calendarSwipeArea');
+        const grid      = document.getElementById('calendarGrid');
+
+        swipeArea.addEventListener('touchstart', (e) => {
+            if (isAnimating) return;
+            startX    = e.touches[0].clientX;
+            currentX  = startX;
+            isDragging = true;
+            grid.classList.remove('is-animating');
+        }, { passive: true });
+
+        swipeArea.addEventListener('touchmove', (e) => {
+            if (!isDragging || isAnimating) return;
+            currentX = e.touches[0].clientX;
+            grid.style.transform = `translateX(${currentX - startX}px)`;
+        }, { passive: true });
+
+        swipeArea.addEventListener('touchend', () => {
+            if (!isDragging || isAnimating) return;
+            isDragging = false;
+            const diff      = currentX - startX;
+            const threshold = swipeArea.offsetWidth * 0.25;
+            if (Math.abs(diff) > threshold) {
+                // 閾値超えたら月切替
+                isAnimating = true;
+                grid.classList.add('is-animating');
+                completeSwipeAnimation(diff > 0 ? -1 : 1);
+            } else if (diff !== 0) {
+                // 閾値未満はキャンセルして元位置へ戻す
+                grid.classList.add('is-animating');
+                grid.style.transform = 'translateX(0)';
+            }
+        });
+
+        // ===== 月切替アニメーション =====
+        // diffMonth: -1（前月）/ +1（翌月）
+        function animateMonthChange(diffMonth) {
+            const containerWidth = swipeArea.offsetWidth;
+            const exitX = diffMonth > 0 ? -containerWidth : containerWidth;
+
+            // 現在グリッドをスライドアウト
+            grid.classList.add('is-animating');
+            grid.style.transform = `translateX(${exitX}px)`;
+            grid.style.opacity   = '0';
+
+            setTimeout(() => {
+                // グリッドを反対側に瞬間移動してから…
+                grid.classList.remove('is-animating');
+                grid.style.transform = `translateX(${-exitX}px)`;
+                viewDate.setMonth(viewDate.getMonth() + diffMonth);
+                requestAnimationFrame(() => {
+                    renderCalendar();
+                    requestAnimationFrame(() => {
+                        // スライドインで表示
+                        grid.classList.add('is-animating');
+                        grid.style.transform = 'translateX(0)';
+                        grid.style.opacity   = '1';
+                        setTimeout(() => { isAnimating = false; }, 300);
+                    });
+                });
+            }, 300);
+        }
+
+        function completeSwipeAnimation(diffMonth) { animateMonthChange(diffMonth); }
+
+        function navChangeMonth(diffMonth) {
+            if (isAnimating) return;
+            isAnimating = true;
+            animateMonthChange(diffMonth);
+        }
+
+        // ===== カレンダー描画 =====
+        const dayHeaderHtml = [
+            '<div class="day-header">日</div>',
+            '<div class="day-header">月</div>',
+            '<div class="day-header">火</div>',
+            '<div class="day-header">水</div>',
+            '<div class="day-header">木</div>',
+            '<div class="day-header">金</div>',
+            '<div class="day-header">土</div>'
+        ].join('');
+
+        function renderCalendar() {
+            const year  = viewDate.getFullYear();
+            const month = viewDate.getMonth();
+
+            // ヘッダーに「YYYY年 M月」を表示
+            const headerEl = document.getElementById('calendarHeader');
+            if (headerEl) headerEl.innerText = `${year}年 ${month + 1}月`;
+
+            // 曜日ヘッダーを描画してからセルを追加
+            grid.innerHTML = dayHeaderHtml;
+            const firstDay = new Date(year, month, 1).getDay();   // 月初の曜日（0=日）
+            const lastDate = new Date(year, month + 1, 0).getDate(); // 月末日
+            const fragment = document.createDocumentFragment();
+
+            // 月初前の空白セル
+            for (let i = 0; i < firstDay; i++) {
+                const empty = document.createElement('div');
+                empty.className = 'day other-month';
+                fragment.appendChild(empty);
+            }
+
+            // 各日付セル
+            for (let d = 1; d <= lastDate; d++) {
+                const dateKey = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+                const dayDiv  = document.createElement('div');
+                dayDiv.className = 'day';
+
+                // メモドット（メモがある場合のみ表示）
+                const hasMemo = currentData[dateKey]?.memo?.trim() !== '' && !!currentData[dateKey]?.memo;
+                let html = `<span class="date-num">${d}${hasMemo ? '<span class="memo-dot"></span>' : ''}</span>`;
+
+                // 収支金額（データがある場合のみ表示）
+                if (currentData[dateKey]) {
+                    const amt         = currentData[dateKey].amount || 0;
+                    const smallFont   = Math.abs(amt) >= 100000 ? 'small-font' : '';  // 6桁以上は小文字
+                    const colorClass  = amt < 0 ? 'negative' : '';
+                    html += `<div class="data-container">
+                        <div class="day-data val-amount ${colorClass} ${smallFont}">${amt.toLocaleString()}</div>
+                    </div>`;
+                }
+
+                dayDiv.innerHTML = html;
+                dayDiv.onclick   = () => openModal(dateKey);
+                fragment.appendChild(dayDiv);
+            }
+
+            // 月末後の空白セル（グリッドを7列に揃える）
+            const totalCells     = firstDay + lastDate;
+            const remainingCells = (7 - (totalCells % 7)) % 7;
+            for (let i = 0; i < remainingCells; i++) {
+                const empty = document.createElement('div');
+                empty.className = 'day other-month';
+                fragment.appendChild(empty);
+            }
+
+            grid.appendChild(fragment);
+            updateSummary();
+        }
+
+        // ===== 日付入力モーダル =====
+        function openModal(dateKey) {
+            selectedDateKey = dateKey;
+            const parts = dateKey.split('-');
+            document.getElementById('selectedDateText').innerText = `${parseInt(parts[1])}月${parseInt(parts[2])}日`;
+            const data = currentData[dateKey];
+            document.getElementById('recoveryInput').value = data?.recovery ?? "";
+            document.getElementById('investInput').value   = data?.invest   ?? "";
+            document.getElementById('memoInput').value     = data?.memo     || "";
+            document.getElementById('modal').style.display = 'flex';
+            autoCalcBalance();
+        }
+
+        function saveData() {
+            const recovery = parseInt(document.getElementById('recoveryInput').value);
+            const invest   = parseInt(document.getElementById('investInput').value);
+            const memo     = document.getElementById('memoInput').value;
+            const amount   = (isNaN(recovery) ? 0 : recovery) - (isNaN(invest) ? 0 : invest);
+
+            // 全フィールドが空なら該当日のデータを削除
+            if (isNaN(recovery) && isNaN(invest) && (!memo || memo.trim() === "")) {
+                delete currentData[selectedDateKey];
+            } else {
+                currentData[selectedDateKey] = {
+                    recovery: recovery || 0,
+                    invest:   invest   || 0,
+                    amount:   amount,
+                    memo:     memo     || ""
+                };
+            }
+            invalidateSummaryCache(selectedDateKey);
+            localStorage.setItem('pachi_data', JSON.stringify(currentData));
+            closeModal();
+            renderCalendar();
+        }
+
+        function closeModal() {
+            document.getElementById('modal').style.display = 'none';
+        }
+
+        function clearModalData() {
+            if (!confirm('この日のデータを消去しますか？')) return;
+            delete currentData[selectedDateKey];
+            invalidateSummaryCache(selectedDateKey);
+            localStorage.setItem('pachi_data', JSON.stringify(currentData));
+            closeModal();
+            renderCalendar();
+        }
+
+        // キーパッドを閉じるダミー関数（メモ欄フォーカス時）
+        function closeKeypad() {}
+
+        // ===== モーダル内の前後日スライド =====
+        function shiftModalDate(diff) {
+            const content = document.getElementById('modalContent');
+            const exitX   = diff > 0 ? '-110%' : '110%';
+            const enterX  = diff > 0 ? '110%'  : '-110%';
+
+            // スライドアウト
+            content.classList.add('is-sliding');
+            content.style.transform = `translateX(${exitX})`;
+            content.style.opacity   = '0';
+
+            setTimeout(() => {
+                // 反対側に瞬間移動してから…
+                content.classList.remove('is-sliding');
+                content.style.transform = `translateX(${enterX})`;
+                content.style.opacity   = '0';
+
+                // 新しい日付を計算してモーダルを更新
+                const d = new Date(selectedDateKey);
+                d.setDate(d.getDate() + diff);
+                const newKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+                openModal(newKey);
+
+                // スライドイン
+                requestAnimationFrame(() => {
+                    requestAnimationFrame(() => {
+                        content.classList.add('is-sliding');
+                        content.style.transform = 'translateX(0)';
+                        content.style.opacity   = '1';
+                        setTimeout(() => content.classList.remove('is-sliding'), 250);
+                    });
+                });
+            }, 250);
+        }
+
+        // ===== モーダル内スワイプ（前後日切替） =====
+        (function () {
+            const content = document.getElementById('modalContent');
+            let mStartX = 0, mMoved = false;
+
+            content.addEventListener('touchstart', (e) => {
+                mStartX = e.touches[0].clientX;
+                mMoved  = false;
+            }, { passive: true });
+
+            content.addEventListener('touchmove', (e) => {
+                const dx = e.touches[0].clientX - mStartX;
+                if (Math.abs(dx) > 10) {
+                    mMoved = true;
+                    content.style.transform = `translateX(${dx * 0.4}px)`;  // 指に軽く追従
+                }
+            }, { passive: true });
+
+            content.addEventListener('touchend', (e) => {
+                if (!mMoved) return;
+                const diff = e.changedTouches[0].clientX - mStartX;
+                if (Math.abs(diff) > 50) {
+                    // 閾値超えたら日付切替
+                    shiftModalDate(diff > 0 ? -1 : 1);
+                } else {
+                    // 閾値未満はキャンセルして元位置へ戻す
+                    content.classList.add('is-sliding');
+                    content.style.transform = 'translateX(0)';
+                    setTimeout(() => content.classList.remove('is-sliding'), 250);
+                }
+                mMoved = false;
+            }, { passive: true });
+        })();
+
+        // ===== 月別サマリーキャッシュ管理 =====
+        function invalidateSummaryCache(dateKey) {
+            delete summaryCache[dateKey.slice(0, 7)];  // 「YYYY-MM」単位でキャッシュ破棄
+        }
+
+        function updateSummary() {
+            const ym = `${viewDate.getFullYear()}-${String(viewDate.getMonth() + 1).padStart(2, '0')}`;
+            if (!summaryCache[ym]) {
+                let total = 0;
+                Object.keys(currentData).forEach(k => {
+                    if (k.startsWith(ym)) total += (currentData[k].amount || 0);
+                });
+                summaryCache[ym] = { amount: total };
+            }
+            const total = summaryCache[ym].amount;
+            const el    = document.getElementById('totalAmount');
+            el.innerText  = `¥${total.toLocaleString()}`;
+            el.className  = `summary-value ${total < 0 ? 'negative' : total > 0 ? 'positive' : ''}`;
+        }
+
+        // ===== 年間累計モーダル =====
+        function showCumulativeModal() {
+            const targetYear = viewDate.getFullYear();
+            document.getElementById('cumModalTitle').innerText = `${targetYear} 年間収支`;
+
+            const tbody = document.getElementById('cumTableBody');
+            tbody.innerHTML = "";
+
+            // 各月の合計を集計
+            const monthlyAmounts = new Array(12).fill(0);
+            Object.keys(currentData).forEach(k => {
+                if (k.startsWith(`${targetYear}-`)) {
+                    const m = parseInt(k.slice(5, 7)) - 1;
+                    if (m >= 0 && m < 12) monthlyAmounts[m] += (currentData[k].amount || 0);
+                }
+            });
+
+            // テーブル行と累計グラフデータを生成
+            let cumulative = 0;
+            const monthLabels = [], cumPoints = [];
+            for (let m = 0; m < 12; m++) {
+                const monthSum  = monthlyAmounts[m];
+                cumulative     += monthSum;
+                const ymPrefix  = `${targetYear}-${String(m + 1).padStart(2, '0')}`;
+                const hasData   = Object.keys(currentData).some(k => k.startsWith(ymPrefix));
+                const row       = document.createElement('tr');
+                if (hasData) {
+                    row.innerHTML = `
+                        <td>${m + 1}月</td>
+                        <td class="${monthSum  < 0 ? 'negative' : monthSum  > 0 ? 'positive' : ''}">${monthSum.toLocaleString()}</td>
+                        <td class="${cumulative < 0 ? 'negative' : cumulative > 0 ? 'positive' : ''}">${cumulative.toLocaleString()}</td>`;
+                } else {
+                    row.innerHTML = `<td>${m + 1}月</td><td></td><td></td>`;
+                }
+                tbody.appendChild(row);
+                monthLabels.push(`${m + 1}月`);
+                cumPoints.push(cumulative);
+            }
+
+            document.getElementById('cumModal').style.display = 'flex';
+
+            // 累計グラフ描画
+            const ctx       = document.getElementById('cumChart').getContext('2d');
+            const allZero   = cumPoints.every(v => v === 0);
+            const yConfig   = {
+                beginAtZero: true,
+                max:  allZero ? 0 : undefined,
+                min:  allZero ? 0 : undefined,
+                ticks: { stepSize: allZero ? 1 : undefined, callback: v => '¥' + v.toLocaleString() }
+            };
+            if (cumChartInstance) {
+                cumChartInstance.data.labels              = monthLabels;
+                cumChartInstance.data.datasets[0].data   = cumPoints;
+                cumChartInstance.options.scales.y         = yConfig;
+                cumChartInstance.update();
+            } else {
+                cumChartInstance = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: monthLabels,
+                        datasets: [{
+                            data:        cumPoints,
+                            borderColor: '#3498db',
+                            borderWidth: 3,
+                            fill:        { value: 0, above: 'rgba(52,152,219,0.15)', below: 'rgba(255,80,80,0.15)' },
+                            tension:     0
+                        }]
+                    },
+                    options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: yConfig } }
+                });
+            }
+        }
+
+        // ===== 月間グラフモーダル =====
+        function showGraph() {
+            const year      = viewDate.getFullYear();
+            const month     = viewDate.getMonth();
+            const lastDate  = new Date(year, month + 1, 0).getDate();
+            const labels    = [], dataPoints = [];
+            let cumulativeBalance = 0;
+
+            for (let d = 1; d <= lastDate; d++) {
+                const dateKey = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+                cumulativeBalance += (currentData[dateKey]?.amount || 0);
+                labels.push(d);
+                dataPoints.push(cumulativeBalance);
+            }
+
+            document.getElementById('graphModal').style.display = 'flex';
+
+            const ctx     = document.getElementById('balanceChart').getContext('2d');
+            const allZero = dataPoints.every(v => v === 0);
+            const yConfig = {
+                beginAtZero: true,
+                max:  allZero ? 0 : undefined,
+                min:  allZero ? 0 : undefined,
+                ticks: { stepSize: allZero ? 1 : undefined, callback: v => '¥' + v.toLocaleString() }
+            };
+            const xConfig = { ticks: { maxRotation: 0, minRotation: 0, autoSkip: true, maxTicksLimit: 10 } };
+
+            if (myChart) {
+                myChart.data.labels            = labels;
+                myChart.data.datasets[0].data  = dataPoints;
+                myChart.options.scales.y       = yConfig;
+                myChart.update();
+            } else {
+                myChart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            data:        dataPoints,
+                            borderColor: '#3498db',
+                            fill:        { value: 0, above: 'rgba(52,152,219,0.15)', below: 'rgba(255,80,80,0.15)' },
+                            tension:     0
+                        }]
+                    },
+                    options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: yConfig, x: xConfig } }
+                });
+            }
+        }
+
+        // ===== CSVエクスポート =====
+        function exportCSV() {
+            let csv = "\uFEFF日付,回収金額,投資金額,収支,メモ\n";  // BOM付きUTF-8（Excel対応）
+            Object.keys(currentData).sort().forEach(k => {
+                const memo = (currentData[k].memo || "").replace(/"/g, '""');
+                csv += `${k},${currentData[k].recovery || 0},${currentData[k].invest || 0},${currentData[k].amount || 0},"${memo}"\n`;
+            });
+            const fileName = `パチ日記_${new Date().toISOString().slice(0, 10)}.csv`;
+            const blob     = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const link     = document.createElement('a');
+            link.href      = URL.createObjectURL(blob);
+            link.download  = fileName;
+            link.click();
+        }
+
+        // ===== CSVインポート =====
+        // RFC 4180 準拠の CSV を1文字ずつパース（クォート内カンマ・改行に対応）
+        function parseCSVLine(line) {
+            const cols = [];
+            let cur = '', inQuote = false;
+            for (let i = 0; i < line.length; i++) {
+                const ch = line[i];
+                if (inQuote) {
+                    if (ch === '"' && line[i + 1] === '"') { cur += '"'; i++; }  // エスケープ引用符
+                    else if (ch === '"') { inQuote = false; }
+                    else { cur += ch; }
+                } else {
+                    if (ch === '"')  { inQuote = true; }
+                    else if (ch === ',') { cols.push(cur); cur = ''; }
+                    else { cur += ch; }
+                }
+            }
+            cols.push(cur);
+            return cols;
+        }
+
+        // 日付文字列を「YYYY-MM-DD」形式に正規化する
+        function normalizeDateKey(raw) {
+            const s = raw.replace(/^\uFEFF/, "").trim();
+            if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+            const m = s.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})$/);
+            if (m) return `${m[1]}-${m[2].padStart(2, '0')}-${m[3].padStart(2, '0')}`;
+            return null;
+        }
+
+        function importCSV(input) {
+            const file = input.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                try {
+                    const text    = e.target.result;
+                    const newData = {};
+                    let count     = 0;
+
+                    // クォート内の改行を考慮しながら行に分割
+                    const lines = [];
+                    let cur = '', inQ = false;
+                    for (let i = 0; i < text.length; i++) {
+                        const ch = text[i];
+                        if (ch === '"') { inQ = !inQ; cur += ch; }
+                        else if (!inQ && (ch === '\n' || (ch === '\r' && text[i + 1] === '\n'))) {
+                            if (ch === '\r') i++;
+                            lines.push(cur); cur = '';
+                        } else { cur += ch; }
+                    }
+                    if (cur) lines.push(cur);
+
+                    // 1行目はヘッダーとして読み飛ばす
+                    for (let i = 1; i < lines.length; i++) {
+                        if (!lines[i].trim()) continue;
+                        const cols = parseCSVLine(lines[i]);
+                        if (cols.length >= 4) {
+                            const date = normalizeDateKey(cols[0]);
+                            if (date) {
+                                newData[date] = {
+                                    recovery: parseInt((cols[1] || "").replace(/,/g, '')) || 0,
+                                    invest:   parseInt((cols[2] || "").replace(/,/g, '')) || 0,
+                                    amount:   parseInt((cols[3] || "").replace(/,/g, '')) || 0,
+                                    memo:     cols[4] || ""
+                                };
+                                count++;
+                            }
+                        }
+                    }
+
+                    if (count > 0 && confirm(count + "件復元しますか？")) {
+                        currentData = newData;
+                        summaryCache = {};
+                        localStorage.setItem('pachi_data', JSON.stringify(currentData));
+                        renderCalendar();
+                        alert("復元完了");
+                    } else if (count === 0) {
+                        alert("復元できるデータが見つかりませんでした。\nファイルの日付形式を確認してください。");
+                    }
+                } catch (err) {
+                    alert("読み込みエラーが発生しました。");
+                }
+            };
+            reader.readAsText(file, "UTF-8");
+            input.value = "";  // 同じファイルを再選択できるようリセット
+        }
+
+        // ===== 初期描画 =====
+        renderCalendar();
+    </script>
+
+
+    <!-- ========== フッター：バックアップ注意書き ========== -->
+    <div class="container">
+        <div class="backup-notice">
+            データはお使いのブラウザ内にのみ保存されています。ブラウザのキャッシュをクリアすると、これまでの記録がすべて消去されてしまいます。<br>
+            万が一に備え、定期的なバックアップを強くおすすめします。
+        </div>
+    </div>
+
+</body>
+</html>

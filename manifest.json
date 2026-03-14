@@ -1,0 +1,24 @@
+{
+  "name": "パチ日記 日記感覚のパチンコ・パチスロの収支管理",
+  "short_name": "パチ日記",
+  "description": "日記感覚のパチンコ・パチスロ用の収支管理アプリ",
+  "start_url": "https://hiroros.github.io/pachi/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#000000",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "./favicon.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "./favicon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
