@@ -1,4 +1,4 @@
-const CACHE_NAME = 'pachi-profit';
+const CACHE_NAME = 'pachi-nikki';
 // キャッシュするファイルのリスト
 // service-worker.jsファイルからの相対パスで指定
 const urlsToCache = [
