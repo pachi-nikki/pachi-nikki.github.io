@@ -4,6 +4,8 @@
   "description": "日記感覚のパチンコ・パチスロ用の収支管理アプリ",
   "start_url": "https://pachi-nikki.github.io/",
   "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#064D66",
   "orientation": "any",
   "icons": [
     {
