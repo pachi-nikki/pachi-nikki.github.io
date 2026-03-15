@@ -1,4 +1,5 @@
 
+
 <!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -12,6 +13,7 @@
     <link rel="manifest" href="manifest.json">
     <title>パチ日記</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 
     <style>
         /* ===== CSS 変数（カラーパレット） ===== */
@@ -344,6 +346,22 @@
         .cancel-btn { background: #eee; color: #333; }
         .clear-btn  { background: var(--negative); color: white; }
 
+        /* ===== シェアボタン ===== */
+        #shareBtn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 4px 10px;
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 1.3rem;
+            color: white;
+            opacity: 0.85;
+        }
+        #shareBtn:active { opacity: 0.5; }
+
         /* ===== フッター：バックアップ注意書き ===== */
         .backup-notice {
             width: 100%;
@@ -362,8 +380,9 @@
 <body>
 
     <!-- ========== ヘッダー（タイトルは長押しで編集可） ========== -->
-    <header>
+    <header style="position:relative;">
         <h1 id="appTitle" contenteditable="true" spellcheck="false">パチ日記</h1>
+        <button id="shareBtn" onclick="shareCalendar()" title="シェア">📤</button>
     </header>
 
     <!-- ========== メインコンテンツ ========== -->
@@ -1015,6 +1034,56 @@
 
         // ===== 初期描画 =====
         renderCalendar();
+
+        // ===== シェア機能 =====
+        async function shareCalendar() {
+            // キャプチャ対象：ヘッダー＋カレンダー＋収支サマリー
+            const header   = document.querySelector('header');
+            const calNav   = document.querySelector('.calendar-nav');
+            const calArea  = document.getElementById('calendarSwipeArea');
+            const summary  = document.querySelector('.summary');
+
+            // 対象要素を一時的にラップ
+            const wrapper = document.createElement('div');
+            wrapper.style.cssText = 'background:#F0F2F5; display:inline-block; width:' + calArea.offsetWidth + 'px;';
+            const clone = {
+                header:  header.cloneNode(true),
+                nav:     calNav.cloneNode(true),
+                cal:     calArea.cloneNode(true),
+                summary: summary.cloneNode(true),
+            };
+            // シェアボタンをクローンから除去
+            const shareClone = clone.header.querySelector('#shareBtn');
+            if (shareClone) shareClone.remove();
+
+            Object.values(clone).forEach(el => wrapper.appendChild(el));
+            document.body.appendChild(wrapper);
+
+            try {
+                const canvas = await html2canvas(wrapper, {
+                    useCORS: true,
+                    scale: 2,
+                    backgroundColor: '#F0F2F5',
+                });
+                document.body.removeChild(wrapper);
+
+                canvas.toBlob(async (blob) => {
+                    const file = new File([blob], 'パチ日記.png', { type: 'image/png' });
+                    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                        await navigator.share({ files: [file], title: 'パチ日記' });
+                    } else {
+                        // フォールバック：ダウンロード
+                        const a = document.createElement('a');
+                        a.href = canvas.toDataURL('image/png');
+                        a.download = 'パチ日記.png';
+                        a.click();
+                    }
+                }, 'image/png');
+            } catch (e) {
+                document.body.removeChild(wrapper);
+                alert('シェアに失敗しました。');
+            }
+        }
     </script>
 
 
