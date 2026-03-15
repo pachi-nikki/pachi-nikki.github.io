@@ -5,7 +5,7 @@
   "start_url": "https://pachi-nikki.github.io/",
   "display": "standalone",
   "background_color": "#ffffff",
-  "theme_color": "#ffffff",
+  "theme_color": "#F0F2F5",
   "orientation": "any",
   "icons": [
     {
