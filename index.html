@@ -98,7 +98,60 @@
         #calendarHeader {
             font-size: 1.2rem;
             font-weight: bold;
+            cursor: pointer;
+            user-select: none;
+            padding: 4px 10px;
+            border-radius: 8px;
+            transition: background 0.15s;
         }
+        #calendarHeader:active { background: rgba(0,0,0,0.06); }
+
+        /* 年月ジャンプモーダル */
+        #jumpModal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5);
+            justify-content: center;
+            align-items: flex-start;
+            z-index: 1000;
+            padding: 15px;
+            padding-top: calc(env(safe-area-inset-top, 0px) + 60px);
+            box-sizing: border-box;
+        }
+        #jumpContent {
+            background: white;
+            border-radius: 20px;
+            padding: 20px;
+            width: 100%;
+            max-width: 320px;
+            box-shadow: 0 6px 24px rgba(0,0,0,0.15);
+        }
+        #jumpContent h3 {
+            margin: 0 0 16px 0;
+            text-align: center;
+            font-size: 1rem;
+            color: var(--dark);
+        }
+        .jump-row {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 16px;
+        }
+        .jump-select {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 10px;
+            font-size: 1rem;
+            font-family: inherit;
+            background: #fff;
+            color: var(--dark);
+            cursor: pointer;
+        }
+        .jump-select:focus { outline: none; border-color: var(--primary); }
 
         /* ===== カレンダー本体 ===== */
         .calendar-container {
@@ -487,7 +540,7 @@
         <!-- カレンダーナビゲーション（月移動） -->
         <div class="calendar-nav">
             <button class="nav-btn" onclick="navChangeMonth(-1)">◀</button>
-            <div id="calendarHeader"></div>
+            <div id="calendarHeader" onclick="openJumpModal()"></div>
             <button class="nav-btn" onclick="navChangeMonth(1)">▶</button>
         </div>
 
@@ -557,6 +610,23 @@
         </div>
     </div><!-- /#modal -->
 
+
+    <!-- ========== 年月ジャンプモーダル ========== -->
+    <div id="jumpModal" onclick="if(event.target==this)closeJumpModal()">
+        <div id="jumpContent">
+            <h3>年月を選択</h3>
+            <div class="jump-row">
+                <select id="jumpYear" class="jump-select"></select>
+                <span style="font-weight:bold; color:var(--dark);">年</span>
+                <select id="jumpMonth" class="jump-select"></select>
+                <span style="font-weight:bold; color:var(--dark);">月</span>
+            </div>
+            <div class="btn-group">
+                <button class="modal-btn save-btn" onclick="doJump()">移動</button>
+                <button class="modal-btn cancel-btn" onclick="closeJumpModal()">キャンセル</button>
+            </div>
+        </div>
+    </div>
 
     <!-- ========== 年間累計モーダル ========== -->
     <div id="cumModal" class="modal" onclick="if(event.target==this)this.style.display='none'">
@@ -1206,6 +1276,44 @@
                 };
                 container.appendChild(item);
             });
+        }
+
+        // ===== 年月ジャンプ =====
+        function openJumpModal() {
+            const yearSel  = document.getElementById('jumpYear');
+            const monthSel = document.getElementById('jumpMonth');
+            const curYear  = viewDate.getFullYear();
+            const curMonth = viewDate.getMonth() + 1;
+
+            yearSel.innerHTML = '';
+            for (let y = curYear - 10; y <= curYear + 10; y++) {
+                const opt = document.createElement('option');
+                opt.value = y;
+                opt.textContent = y;
+                if (y === curYear) opt.selected = true;
+                yearSel.appendChild(opt);
+            }
+            monthSel.innerHTML = '';
+            for (let m = 1; m <= 12; m++) {
+                const opt = document.createElement('option');
+                opt.value = m;
+                opt.textContent = m;
+                if (m === curMonth) opt.selected = true;
+                monthSel.appendChild(opt);
+            }
+            document.getElementById('jumpModal').style.display = 'flex';
+        }
+
+        function closeJumpModal() {
+            document.getElementById('jumpModal').style.display = 'none';
+        }
+
+        function doJump() {
+            const y = parseInt(document.getElementById('jumpYear').value);
+            const m = parseInt(document.getElementById('jumpMonth').value);
+            viewDate = new Date(y, m - 1, 1);
+            closeJumpModal();
+            renderCalendar();
         }
 
         // ===== 初期描画 =====
