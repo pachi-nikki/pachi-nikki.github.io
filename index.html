@@ -1397,7 +1397,7 @@
             keys.forEach(k => {
                 const d = currentData[k];
                 const parts = k.split('-');
-                const dateLabel = `${parseInt(parts[0])}年${parseInt(parts[1])}月${parseInt(parts[2])}日`;
+                const dateLabel = `${parseInt(parts[1])}月${parseInt(parts[2])}日`;
                 const balance  = (d.recovery || 0) - (d.invest || 0);
                 const balanceStr = balance.toLocaleString();
                 const isNeg    = balance < 0;
