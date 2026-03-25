@@ -1339,18 +1339,16 @@
                 const d = currentData[k];
                 const parts = k.split('-');
                 const dateLabel = `${parseInt(parts[0])}年${parseInt(parts[1])}月${parseInt(parts[2])}日`;
-                const recovery = (d.recovery || 0).toLocaleString();
-                const invest   = (d.invest   || 0).toLocaleString();
+                const balance  = (d.recovery || 0) - (d.invest || 0);
+                const balanceStr = balance.toLocaleString();
+                const isNeg    = balance < 0;
                 const memo     = d.memo ? d.memo.trim() : '';
 
                 const item = document.createElement('div');
                 item.className = 'search-result-item';
                 item.innerHTML = `
                     <div class="search-result-date">${dateLabel}</div>
-                    <div class="search-result-amounts">
-                        <span class="search-result-recovery">回収 ¥${recovery}</span>
-                        <span class="search-result-invest">投資 ¥${invest}</span>
-                    </div>
+                    <div class="search-result-amount" style="color:${isNeg ? 'var(--negative)' : 'var(--positive)'}; font-size:0.88rem; font-weight:bold; margin-bottom:4px;">収支: ¥${balanceStr}</div>
                     ${memo ? `<div class="search-result-memo">${memo.replace(/</g,'&lt;')}</div>` : ''}
                 `;
                 // タップするとその日のモーダルを開く
