@@ -1348,7 +1348,7 @@
                 item.className = 'search-result-item';
                 item.innerHTML = `
                     <div class="search-result-date">${dateLabel}</div>
-                    <div class="search-result-amount" style="color:${isNeg ? 'var(--negative)' : 'var(--positive)'}; font-size:0.88rem; font-weight:bold; margin-bottom:4px;">収支: ¥${balanceStr}</div>
+                    <div class="search-result-amount" style="color:${isNeg ? 'var(--negative)' : 'var(--positive)'}; font-size:0.88rem; font-weight:bold; margin-bottom:4px;">¥${balanceStr}</div>
                     ${memo ? `<div class="search-result-memo">${memo.replace(/</g,'&lt;')}</div>` : ''}
                 `;
                 // タップするとその日のモーダルを開く
@@ -1407,7 +1407,7 @@
                 item.className = 'list-result-item';
                 item.innerHTML = `
                     <div class="list-result-date">${dateLabel}</div>
-                    <div class="list-result-balance" style="color:${isNeg ? 'var(--negative)' : 'var(--positive)'}">収支: ¥${balanceStr}</div>
+                    <div class="list-result-balance" style="color:${isNeg ? 'var(--negative)' : 'var(--positive)'}">¥${balanceStr}</div>
                     ${memo ? `<div class="list-result-memo">${memo.replace(/</g,'&lt;')}</div>` : ''}
                 `;
                 item.onclick = () => {
