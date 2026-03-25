@@ -483,6 +483,11 @@
             color: var(--negative);
             font-weight: bold;
         }
+        .list-result-balance {
+            font-size: 0.88rem;
+            font-weight: bold;
+            margin-bottom: 4px;
+        }
         .list-result-memo {
             font-size: 0.82rem;
             color: #666;
@@ -1395,18 +1400,16 @@
                 const d = currentData[k];
                 const parts = k.split('-');
                 const dateLabel = `${parseInt(parts[0])}年${parseInt(parts[1])}月${parseInt(parts[2])}日`;
-                const recovery = (d.recovery || 0).toLocaleString();
-                const invest   = (d.invest   || 0).toLocaleString();
+                const balance  = (d.recovery || 0) - (d.invest || 0);
+                const balanceStr = balance.toLocaleString();
+                const isNeg    = balance < 0;
                 const memo     = d.memo ? d.memo.trim() : '';
 
                 const item = document.createElement('div');
                 item.className = 'list-result-item';
                 item.innerHTML = `
                     <div class="list-result-date">${dateLabel}</div>
-                    <div class="list-result-amounts">
-                        <span class="list-result-recovery">回収 ¥${recovery}</span>
-                        <span class="list-result-invest">投資 ¥${invest}</span>
-                    </div>
+                    <div class="list-result-balance" style="color:${isNeg ? 'var(--negative)' : 'var(--positive)'}">収支: ¥${balanceStr}</div>
                     ${memo ? `<div class="list-result-memo">${memo.replace(/</g,'&lt;')}</div>` : ''}
                 `;
                 item.onclick = () => {
