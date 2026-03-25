@@ -1,4 +1,5 @@
 
+
 <!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -623,7 +624,7 @@
             </div>
             <div class="btn-group">
                 <button class="modal-btn save-btn" onclick="doJump()">移動</button>
-                <button class="modal-btn cancel-btn" onclick="closeJumpModal()">キャンセル</button>
+                <button class="modal-btn cancel-btn" onclick="goToCurrentMonth()">今月に戻る</button>
             </div>
         </div>
     </div>
@@ -1308,12 +1309,86 @@
             document.getElementById('jumpModal').style.display = 'none';
         }
 
+        function goToCurrentMonth() {
+            const today = new Date();
+            const targetYear  = today.getFullYear();
+            const targetMonth = today.getMonth();
+
+            // すでに今月なら閉じるだけ
+            if (viewDate.getFullYear() === targetYear && viewDate.getMonth() === targetMonth) {
+                closeJumpModal();
+                return;
+            }
+
+            closeJumpModal();
+
+            if (isAnimating) return;
+            isAnimating = true;
+
+            const containerWidth = swipeArea.offsetWidth;
+            // 今月が未来なら左へ、過去なら右へスライドアウト
+            const goingForward = new Date(targetYear, targetMonth, 1) > viewDate;
+            const exitX = goingForward ? -containerWidth : containerWidth;
+
+            // スライドアウト
+            grid.classList.add('is-animating');
+            grid.style.transform = `translateX(${exitX}px)`;
+            grid.style.opacity   = '0';
+
+            setTimeout(() => {
+                grid.classList.remove('is-animating');
+                grid.style.transform = `translateX(${-exitX}px)`;
+                viewDate = new Date(targetYear, targetMonth, 1);
+                requestAnimationFrame(() => {
+                    renderCalendar();
+                    requestAnimationFrame(() => {
+                        grid.classList.add('is-animating');
+                        grid.style.transform = 'translateX(0)';
+                        grid.style.opacity   = '1';
+                        setTimeout(() => { isAnimating = false; }, 300);
+                    });
+                });
+            }, 300);
+        }
+
         function doJump() {
             const y = parseInt(document.getElementById('jumpYear').value);
             const m = parseInt(document.getElementById('jumpMonth').value);
-            viewDate = new Date(y, m - 1, 1);
+            const target = new Date(y, m - 1, 1);
+
+            // 同じ年月なら閉じるだけ
+            if (viewDate.getFullYear() === y && viewDate.getMonth() === m - 1) {
+                closeJumpModal();
+                return;
+            }
+
             closeJumpModal();
-            renderCalendar();
+
+            if (isAnimating) return;
+            isAnimating = true;
+
+            const containerWidth = swipeArea.offsetWidth;
+            const goingForward   = target > viewDate;
+            const exitX          = goingForward ? -containerWidth : containerWidth;
+
+            grid.classList.add('is-animating');
+            grid.style.transform = `translateX(${exitX}px)`;
+            grid.style.opacity   = '0';
+
+            setTimeout(() => {
+                grid.classList.remove('is-animating');
+                grid.style.transform = `translateX(${-exitX}px)`;
+                viewDate = target;
+                requestAnimationFrame(() => {
+                    renderCalendar();
+                    requestAnimationFrame(() => {
+                        grid.classList.add('is-animating');
+                        grid.style.transform = 'translateX(0)';
+                        grid.style.opacity   = '1';
+                        setTimeout(() => { isAnimating = false; }, 300);
+                    });
+                });
+            }, 300);
         }
 
         // ===== 初期描画 =====
